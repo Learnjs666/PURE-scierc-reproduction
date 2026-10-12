@@ -1,0 +1,28 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Large Model Checkpoints & Pretrained Weights (>100MB, rejected by GitHub)
+*.bin
+*.pt
+*.pth
+*.tar.gz
+*.zip
+
+# Logs
+*.log
+eval.log
+train.log
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

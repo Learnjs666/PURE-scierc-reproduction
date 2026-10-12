@@ -17,11 +17,13 @@ from collections import Counter
 
 from torch.nn import CrossEntropyLoss
 
-from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE, WEIGHTS_NAME, CONFIG_NAME
+from transformers import WEIGHTS_NAME, CONFIG_NAME
+PYTORCH_PRETRAINED_BERT_CACHE = None
 from relation.models import BertForRelationApprox
 # from relation.models import AlbertForRelationApprox
 from transformers import AutoTokenizer
-from transformers import AdamW, get_linear_schedule_with_warmup
+from torch.optim import AdamW
+from transformers import get_linear_schedule_with_warmup
 
 from relation.utils import generate_relation_data, decode_sample_id
 from shared.const import task_rel_labels, task_ner_labels

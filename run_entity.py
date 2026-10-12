@@ -13,7 +13,8 @@ from shared.const import task_ner_labels, get_labelmap
 from entity.utils import convert_dataset_to_samples, batchify, NpEncoder
 from entity.models import EntityModel
 
-from transformers import AdamW, get_linear_schedule_with_warmup
+from torch.optim import AdamW
+from transformers import get_linear_schedule_with_warmup
 import torch
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
@@ -191,13 +192,12 @@ if __name__ == '__main__':
     ner_label2id, ner_id2label = get_labelmap(task_ner_labels[args.task])
     
     num_ner_labels = len(task_ner_labels[args.task]) + 1
-    model = EntityModel(args, num_ner_labels=num_ner_labels)
-
-    dev_data = Dataset(args.dev_data)
-    dev_samples, dev_ner = convert_dataset_to_samples(dev_data, args.max_span_length, ner_label2id=ner_label2id, context_window=args.context_window)
-    dev_batches = batchify(dev_samples, args.eval_batch_size)
 
     if args.do_train:
+        model = EntityModel(args, num_ner_labels=num_ner_labels)
+        dev_data = Dataset(args.dev_data)
+        dev_samples, dev_ner = convert_dataset_to_samples(dev_data, args.max_span_length, ner_label2id=ner_label2id, context_window=args.context_window)
+        dev_batches = batchify(dev_samples, args.eval_batch_size)
         train_data = Dataset(args.train_data)
         train_samples, train_ner = convert_dataset_to_samples(train_data, args.max_span_length, ner_label2id=ner_label2id, context_window=args.context_window)
         train_batches = batchify(train_samples, args.train_batch_size)

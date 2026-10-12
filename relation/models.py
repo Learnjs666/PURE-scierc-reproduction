@@ -5,8 +5,10 @@ from torch.nn import CrossEntropyLoss
 from transformers import BertModel, BertPreTrainedModel
 from transformers import AlbertModel, AlbertPreTrainedModel
 
-from allennlp.modules import FeedForward
-from allennlp.nn.util import batched_index_select
+def batched_index_select(target, indices):
+    dummy = indices.unsqueeze(2).expand(indices.size(0), indices.size(1), target.size(2))
+    return torch.gather(target, 1, dummy)
+
 import torch.nn.functional as F
 
 BertLayerNorm = torch.nn.LayerNorm
@@ -18,7 +20,10 @@ class BertForRelation(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_norm = BertLayerNorm(config.hidden_size * 2)
         self.classifier = nn.Linear(config.hidden_size * 2, self.num_labels)
-        self.init_weights()
+        if hasattr(self, 'post_init'):
+            self.post_init()
+        else:
+            self.init_weights()
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, sub_idx=None, obj_idx=None, input_position=None):
         outputs = self.bert(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, output_hidden_states=False, output_attentions=False, position_ids=input_position)
@@ -45,7 +50,10 @@ class AlbertForRelation(AlbertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_norm = BertLayerNorm(config.hidden_size * 2)
         self.classifier = nn.Linear(config.hidden_size * 2, self.num_labels)
-        self.init_weights()
+        if hasattr(self, 'post_init'):
+            self.post_init()
+        else:
+            self.init_weights()
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, sub_idx=None, obj_idx=None):
         outputs = self.albert(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, output_hidden_states=False, output_attentions=False)
@@ -72,7 +80,10 @@ class BertForRelationApprox(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_norm = BertLayerNorm(config.hidden_size * 2)
         self.classifier = nn.Linear(config.hidden_size * 2, self.num_labels)
-        self.init_weights()
+        if hasattr(self, 'post_init'):
+            self.post_init()
+        else:
+            self.init_weights()
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, sub_obj_ids=None, sub_obj_masks=None, input_position=None):
         """
@@ -115,7 +126,10 @@ class AlbertForRelationApprox(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_norm = BertLayerNorm(config.hidden_size * 2)
         self.classifier = nn.Linear(config.hidden_size * 2, self.num_labels)
-        self.init_weights()
+        if hasattr(self, 'post_init'):
+            self.post_init()
+        else:
+            self.init_weights()
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, sub_obj_ids=None, sub_obj_masks=None, input_position=None):
         batch_size = input_ids.size(0)

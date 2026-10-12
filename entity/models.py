@@ -3,9 +3,32 @@ from torch import nn
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 
-from allennlp.nn.util import batched_index_select
-from allennlp.nn import util, Activation
-from allennlp.modules import FeedForward
+def batched_index_select(target, indices):
+    dummy = indices.unsqueeze(2).expand(indices.size(0), indices.size(1), target.size(2))
+    return torch.gather(target, 1, dummy)
+
+class FeedForward(nn.Module):
+    """Matches the exact state_dict structure of allennlp.modules.FeedForward"""
+    def __init__(self, input_dim, num_layers=2, hidden_dims=150, activations=F.relu, dropout=0.2):
+        super().__init__()
+        if isinstance(hidden_dims, int):
+            hidden_dims = [hidden_dims] * num_layers
+        layers = []
+        prev_dim = input_dim
+        for h_dim in hidden_dims:
+            layers.append(nn.Linear(prev_dim, h_dim))
+            prev_dim = h_dim
+        self._linear_layers = nn.ModuleList(layers)
+        self._dropout = nn.Dropout(dropout) if isinstance(dropout, float) else None
+        self._activations = activations if isinstance(activations, (list, tuple)) else [activations] * num_layers
+
+    def forward(self, x):
+        for layer, act in zip(self._linear_layers, self._activations):
+            x = act(layer(x))
+            if self._dropout is not None:
+                x = self._dropout(x)
+        return x
+
 
 import numpy as np
 
@@ -35,10 +58,14 @@ class BertForEntity(BertPreTrainedModel):
             nn.Linear(head_hidden_dim, num_ner_labels)
         )
 
-        self.init_weights()
+        if hasattr(self, 'post_init'):
+            self.post_init()
+        else:
+            self.init_weights()
 
     def _get_span_embeddings(self, input_ids, spans, token_type_ids=None, attention_mask=None):
-        sequence_output, pooled_output = self.bert(input_ids=input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)
+        outputs = self.bert(input_ids=input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)
+        sequence_output = outputs[0]
         
         sequence_output = self.hidden_dropout(sequence_output)
 
@@ -102,10 +129,14 @@ class AlbertForEntity(AlbertPreTrainedModel):
             nn.Linear(head_hidden_dim, num_ner_labels)
         )
 
-        self.init_weights()
+        if hasattr(self, 'post_init'):
+            self.post_init()
+        else:
+            self.init_weights()
 
     def _get_span_embeddings(self, input_ids, spans, token_type_ids=None, attention_mask=None):
-        sequence_output, pooled_output = self.albert(input_ids=input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)
+        outputs = self.albert(input_ids=input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)
+        sequence_output = outputs[0]
         
         sequence_output = self.hidden_dropout(sequence_output)
 
@@ -177,15 +208,17 @@ class EntityModel():
         self.move_model_to_cuda()
 
     def move_model_to_cuda(self):
-        if not torch.cuda.is_available():
-            logger.error('No CUDA found!')
-            exit(-1)
-        logger.info('Moving to CUDA...')
-        self._model_device = 'cuda'
-        self.bert_model.cuda()
-        logger.info('# GPUs = %d'%(torch.cuda.device_count()))
-        if torch.cuda.device_count() > 1:
-            self.bert_model = torch.nn.DataParallel(self.bert_model)
+        if torch.cuda.is_available():
+            logger.info('Moving to CUDA...')
+            self._model_device = 'cuda'
+            self.bert_model.cuda()
+            logger.info('# GPUs = %d'%(torch.cuda.device_count()))
+            if torch.cuda.device_count() > 1:
+                self.bert_model = torch.nn.DataParallel(self.bert_model)
+        else:
+            logger.info('CUDA not available, running on CPU...')
+            self._model_device = 'cpu'
+            self.bert_model.cpu()
 
     def _get_input_tensors(self, tokens, spans, spans_ner_label):
         start2idx = []

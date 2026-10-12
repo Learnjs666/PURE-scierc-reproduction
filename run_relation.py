@@ -17,10 +17,12 @@ from collections import Counter
 
 from torch.nn import CrossEntropyLoss
 
-from transformers.file_utils import PYTORCH_PRETRAINED_BERT_CACHE, WEIGHTS_NAME, CONFIG_NAME
+from transformers import WEIGHTS_NAME, CONFIG_NAME
+PYTORCH_PRETRAINED_BERT_CACHE = None
 from relation.models import BertForRelation, AlbertForRelation
 from transformers import AutoTokenizer
-from transformers import AdamW, get_linear_schedule_with_warmup
+from torch.optim import AdamW
+from transformers import get_linear_schedule_with_warmup
 
 from relation.utils import generate_relation_data, decode_sample_id
 from shared.const import task_rel_labels, task_ner_labels
@@ -247,7 +249,7 @@ def print_pred_json(eval_data, eval_examples, preds, id2label, output_file):
 
 def setseed(seed):
     random.seed(seed)
-    np.random.seed(args.seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
