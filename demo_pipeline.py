@@ -156,9 +156,9 @@ class PUREPipeline:
         print("-"*70)
 
         # Tokenization & Alignment
-        # 保存每个词token化后的内容（一个词可能被分出几个token）
+        # 保存每个词 token 化后的内容（一个词可能被分出几个 token）
         subwords = ["[CLS]"]
-        # 记录每个词token化后在subwords中的起止位置
+        # 记录每个词 token 化后在 subwords 中的起止位置
         tok_to_subword = []
         for tok in raw_tokens:
             sw = self.tokenizer.tokenize(tok)
@@ -168,11 +168,12 @@ class PUREPipeline:
             subwords.extend(sw)
         subwords.append("[SEP]")
 
-        # 将token转换为tensor向量
+        # 将 tokens 转换为 tensor 向量
         input_ids = torch.tensor([self.tokenizer.convert_tokens_to_ids(subwords)])
+        # attention mask 向量
         attn_mask = torch.ones_like(input_ids)
 
-        # Candidate span enumeration (length <= max_span_length)
+        # 枚举候选跨度(长度小于等于max_span_length)
         candidate_spans = []
         n_tokens = len(raw_tokens)
         for length in range(1, max_span_length + 1):

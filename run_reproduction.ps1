@@ -17,9 +17,9 @@ if (Test-Path ".\venv\Scripts\python.exe") {
 }
 
 # 2. Check Models Directory
-if (-not (Test-Path ".\scierc_models\ent-scib-ctx0") -or -not (Test-Path ".\scierc_models\rel-scib-ctx0")) {
-    Write-Host "[Pre-check] SciERC model weights not found in scierc_models/." -ForegroundColor Yellow
-    Write-Host "[Pre-check] Downloading models via download_models.py..." -ForegroundColor Yellow
+if (-not (Test-Path ".\scierc_models\ent-scib-ctx0") -or -not (Test-Path ".\scierc_models\rel-scib-ctx0") -or -not (Test-Path ".\scierc_models\rel_approx-scib-ctx0")) {
+    Write-Host "[Pre-check] SciERC model weights not fully found in scierc_models/." -ForegroundColor Yellow
+    Write-Host "[Pre-check] Downloading missing models via download_models.py..." -ForegroundColor Yellow
     & $PythonCmd download_models.py
 } else {
     Write-Host "[Pre-check] Pretrained model checkpoints verified in scierc_models/." -ForegroundColor Green
@@ -27,7 +27,7 @@ if (-not (Test-Path ".\scierc_models\ent-scib-ctx0") -or -not (Test-Path ".\scie
 
 # 3. Stage 1: Entity Prediction
 Write-Host "`n------------------------------------------------------------------" -ForegroundColor Magenta
-Write-Host "▶ Step 1/3: Running Entity Span Prediction (run_entity.py)..." -ForegroundColor Magenta
+Write-Host "▶ Step 1/4: Running Entity Span Prediction (run_entity.py)..." -ForegroundColor Magenta
 Write-Host "------------------------------------------------------------------" -ForegroundColor Magenta
 
 & $PythonCmd run_entity.py `
@@ -45,9 +45,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "[Success] Entity predictions saved to scierc_models/ent-scib-ctx0/ent_pred_test.json" -ForegroundColor Green
 
-# 4. Stage 2: Relation Extraction
+# 4. Stage 2A: Full Relation Extraction
 Write-Host "`n------------------------------------------------------------------" -ForegroundColor Magenta
-Write-Host "▶ Step 2/3: Running Relation Extraction with Typed Markers (run_relation.py)..." -ForegroundColor Magenta
+Write-Host "▶ Step 2/4: Running Full Relation Extraction (run_relation.py)..." -ForegroundColor Magenta
 Write-Host "------------------------------------------------------------------" -ForegroundColor Magenta
 
 & $PythonCmd run_relation.py `
@@ -62,17 +62,44 @@ Write-Host "------------------------------------------------------------------" 
     --output_dir scierc_models/rel-scib-ctx0/
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[Error] Relation prediction failed with exit code $LASTEXITCODE." -ForegroundColor Red
+    Write-Host "[Error] Full relation prediction failed with exit code $LASTEXITCODE." -ForegroundColor Red
     exit $LASTEXITCODE
 }
-Write-Host "[Success] Relation predictions saved to scierc_models/rel-scib-ctx0/predictions.json" -ForegroundColor Green
+Write-Host "[Success] Full relation predictions saved to scierc_models/rel-scib-ctx0/predictions.json" -ForegroundColor Green
 
-# 5. Stage 3: End-to-End Metric Evaluation
+# 5. Stage 2B: Fast Approximation Relation Extraction
 Write-Host "`n------------------------------------------------------------------" -ForegroundColor Magenta
-Write-Host "▶ Step 3/3: Running End-to-End Metric Evaluation (run_eval.py)..." -ForegroundColor Magenta
+Write-Host "▶ Step 3/4: Running Approximation Relation Model (run_relation_approx.py)..." -ForegroundColor Magenta
 Write-Host "------------------------------------------------------------------" -ForegroundColor Magenta
 
+& $PythonCmd run_relation_approx.py `
+    --task scierc `
+    --do_eval `
+    --eval_test `
+    --model allenai/scibert_scivocab_uncased `
+    --do_lower_case `
+    --context_window 0 `
+    --max_seq_length 250 `
+    --entity_output_dir scierc_models/ent-scib-ctx0/ `
+    --output_dir scierc_models/rel_approx-scib-ctx0/ `
+    --batch_computation
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[Error] Approximation relation prediction failed with exit code $LASTEXITCODE." -ForegroundColor Red
+    exit $LASTEXITCODE
+}
+Write-Host "[Success] Approximation relation predictions saved to scierc_models/rel_approx-scib-ctx0/predictions.json" -ForegroundColor Green
+
+# 6. Stage 3: End-to-End Metric Evaluation
+Write-Host "`n------------------------------------------------------------------" -ForegroundColor Magenta
+Write-Host "▶ Step 4/4: Running End-to-End Metric Evaluation (run_eval.py)..." -ForegroundColor Magenta
+Write-Host "------------------------------------------------------------------" -ForegroundColor Magenta
+
+Write-Host "[Full Relation Model Evaluation]" -ForegroundColor Yellow
 & $PythonCmd run_eval.py --prediction_file scierc_models/rel-scib-ctx0/predictions.json
+
+Write-Host "`n[Approximation Relation Model Evaluation]" -ForegroundColor Yellow
+& $PythonCmd run_eval.py --prediction_file scierc_models/rel_approx-scib-ctx0/predictions.json
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[Error] Evaluation script failed with exit code $LASTEXITCODE." -ForegroundColor Red

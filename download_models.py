@@ -24,8 +24,14 @@ def main():
     os.makedirs(model_dir, exist_ok=True)
 
     models = [
+        # Single-sentence models (W=0)
         ("ent-scib-ctx0", "https://nlp.cs.princeton.edu/projects/pure/scierc_models/ent-scib-ctx0.zip"),
-        ("rel-scib-ctx0", "https://nlp.cs.princeton.edu/projects/pure/scierc_models/rel-scib-ctx0.zip")
+        ("rel-scib-ctx0", "https://nlp.cs.princeton.edu/projects/pure/scierc_models/rel-scib-ctx0.zip"),
+        ("rel_approx-scib-ctx0", "https://nlp.cs.princeton.edu/projects/pure/scierc_models/rel_approx-scib-ctx0.zip"),
+        # Cross-sentence models (W=300 for entity, W=100 for relation)
+        ("ent-scib-ctx300", "https://nlp.cs.princeton.edu/projects/pure/scierc_models/ent-scib-ctx300.zip"),
+        ("rel-scib-ctx100", "https://nlp.cs.princeton.edu/projects/pure/scierc_models/rel-scib-ctx100.zip"),
+        ("rel_approx-scib-ctx100", "https://nlp.cs.princeton.edu/projects/pure/scierc_models/rel_approx-scib-ctx100.zip")
     ]
 
     for name, url in models:

@@ -192,6 +192,7 @@ def compute_f1(preds, labels, e2e_ngold):
 
 
 def evaluate(model, device, eval_dataloader, eval_label_ids, num_labels, e2e_ngold=None, verbose=True):
+    c_time = time.time()
     model.eval()
     eval_loss = 0
     nb_eval_steps = 0
@@ -222,7 +223,7 @@ def evaluate(model, device, eval_dataloader, eval_label_ids, num_labels, e2e_ngo
     result['accuracy'] = simple_accuracy(preds, eval_label_ids.numpy())
     result['eval_loss'] = eval_loss
     if verbose:
-        logger.info("***** Eval results *****")
+        logger.info("***** Eval results (used time: %.3f s) *****"%(time.time()-c_time))
         for key in sorted(result.keys()):
             logger.info("  %s = %s", key, str(result[key]))
     return preds, result, logits

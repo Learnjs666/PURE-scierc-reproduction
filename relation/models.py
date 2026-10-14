@@ -90,6 +90,12 @@ class BertForRelationApprox(BertPreTrainedModel):
         attention_mask: [batch_size, from_seq_length, to_seq_length]
         """
         batch_size = input_ids.size(0)
+        if attention_mask is not None and attention_mask.dim() == 3:
+            if getattr(self.config, "_attn_implementation", "sdpa") == "eager":
+                dtype = self.bert.embeddings.word_embeddings.weight.dtype
+                attention_mask = (1.0 - attention_mask.unsqueeze(1).to(dtype)) * torch.finfo(dtype).min
+            else:
+                attention_mask = attention_mask.unsqueeze(1).to(torch.bool)
         outputs = self.bert(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask, output_hidden_states=False, output_attentions=False, position_ids=input_position)
         sequence_output = outputs[0]
 

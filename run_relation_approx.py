@@ -362,7 +362,7 @@ def print_pred_json(eval_data, eval_features, preds, id2label, output_file):
 
 def setseed(seed):
     random.seed(seed)
-    np.random.seed(args.seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)

@@ -134,48 +134,69 @@ python run_relation.py `
 
 ---
 
+### 第二步（B）：近似批处理关系抽取预测 (Stage 2-Approx: Fast Approximation Relation Model)
+
+针对全量模型需要将 5,092 对候选实体拆分为 5,092 个独立句子做前向计算的 $\mathcal{O}(k^2)$ 开销瓶颈，近似模型将同一句内的多对 Typed Markers 追加至句末，通过**位置绑定（Position Tieing）**与**二维非对称定向注意力掩码（Directed Attention Mask）**，将 5,092 对候选关系打包压缩为 **470 个句子级样本**（平均每句打包 10.83 对），在单次前向中并行打分。
+
+#### 执行命令 (PowerShell)
+```powershell
+python run_relation_approx.py `
+  --task scierc `
+  --do_eval `
+  --eval_test `
+  --model allenai/scibert_scivocab_uncased `
+  --do_lower_case `
+  --context_window 0 `
+  --max_seq_length 250 `
+  --entity_output_dir scierc_models/ent-scib-ctx0/ `
+  --output_dir scierc_models/rel_approx-scib-ctx0/ `
+  --batch_computation
+```
+
+#### 产物说明：
+- 输出文件：`scierc_models/rel_approx-scib-ctx0/predictions.json`
+- 前向样本数从 `5,092` 骤降至 **`470`**（压缩比 **10.83 倍**），CPU 推理耗时仅 **`62.327 s`**，预测出 884 个有效关系（442 个命中，精确率达 50.00%）。
+
+---
+
 ### 第三步：端到端评测与论文对齐 (Stage 3: End-to-End Evaluation)
 
 该阶段调用端到端评测脚本，同时计算实体识别评测指标与关系抽取评测指标（包括 Boundary Matching 与 Strict Matching）。
 
 #### 执行命令 (PowerShell)
 ```powershell
-python run_eval.py `
-  --prediction_file scierc_models/rel-scib-ctx0/predictions.json
+# 评测标准全量关系模型
+python run_eval.py --prediction_file scierc_models/rel-scib-ctx0/predictions.json
+
+# 评测近似批处理关系模型
+python run_eval.py --prediction_file scierc_models/rel_approx-scib-ctx0/predictions.json
 ```
 
 ---
 
-## 5. 实测结果与论文 Table 1 精准对照
+## 5. 实测结果与论文 Table 1 / Table 5 精准对照
 
 评测脚本执行后，核心评测输出如下：
 
 ```text
-=== NER Evaluation ===
-  Accuracy  : 0.9080
-  Precision : 0.6679 (1122 / 1680)
-  Recall    : 0.6659 (1122 / 1685)
-  NER F1    : 0.6669
+=== 1. Full Relation Model (rel-scib-ctx0, 5092 examples) ===
+  NER          - P: 0.667857, R: 0.665875, F1: 0.666865
+  REL          - P: 0.491614, R: 0.481520, F1: 0.486515
+  REL (strict) - P: 0.360587, R: 0.353183, F1: 0.356846
 
-=== Relation Evaluation ===
-  Accuracy  : 0.8751
-  Precision : 0.4916 (469 / 954)
-  Recall    : 0.4815 (469 / 974)
-  REL F1    : 0.4865 (Boundary Matching)
-
-=== End-to-End Strict Evaluation (run_eval.py) ===
-  Strict P  : 0.3606 (344 / 954)
-  Strict R  : 0.3532 (344 / 974)
-  Strict F1 : 0.3568 (Strict Matching)
+=== 2. Approximation Relation Model (rel_approx-scib-ctx0, 470 examples, 62.327 s) ===
+  NER          - P: 0.667857, R: 0.665875, F1: 0.666865
+  REL          - P: 0.500000, R: 0.453799, F1: 0.475780
+  REL (strict) - P: 0.376697, R: 0.341889, F1: 0.358450
 ```
 
-### 论文表 1 (Table 1: End-to-end results on SciERC) 严格对齐表：
+### 论文 Table 1 & Table 5 (End-to-end & Approximation Results on SciERC) 严格对齐表：
 
-| 评估指标 (Metric) | 评测匹配准则 (Criteria) | 本次实测复现值 | 论文 Table 1 汇报值 (单句/无额外语境) | 对齐结论与状态 |
-| :--- | :--- | :---: | :---: | :---: |
-| **NER F1** | 跨度起止边界 + 实体类别完全正确 | **66.69%** | 66.6% | ✅ **完美对齐** (偏差仅 +0.09%) |
-| **REL F1** | 跨度起止边界 + 关系类别匹配 (忽略实体类型) | **48.65%** | 48.2% | ✅ **完美对齐** (略超基线 +0.45%) |
-| **REL Strict F1** | 跨度起止边界 + **实体类别** + 关系类别全部完全匹配 | **35.68%** | 35.6% | ✅ **完美对齐** (偏差仅 +0.08%) |
+| 评估指标 (Metric) | 评测匹配准则 (Criteria) | Full Model 实测值 (`5092` 次前向) | Approx Model 实测值 (`470` 次前向, `62.3s`) | 论文汇报基线值 (无跨句上下文) | 对齐结论与状态 |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **NER F1** | 跨度起止边界 + 实体类别完全正确 | **66.69%** | **66.69%** | 66.6% | ✅ **完美对齐** (偏差 +0.09%) |
+| **REL F1** | 跨度起止边界 + 关系类别匹配 (忽略实体类型) | **48.65%** | **47.58%** | 48.2% | ✅ **完美对齐** (Approx 仅差 ~1%) |
+| **REL Strict F1** | 跨度起止边界 + **实体类别** + 关系类别全部匹配 | **35.68%** | **35.85%** | 35.6% | ✅ **完美对齐** (Approx 甚至反超 +0.17%!) |
 
 ---
 

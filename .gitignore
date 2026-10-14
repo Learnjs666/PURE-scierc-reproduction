@@ -26,3 +26,11 @@ train.log
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Materials Domain Specific Weights & Raw Dumps
+materials_models/
+materials_data/raw/
+
+# Predictions & Generated outputs
+predictions.json
+ent_pred*.json
